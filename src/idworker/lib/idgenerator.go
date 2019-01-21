@@ -45,15 +45,10 @@ func (ID *IDGenerator) idGenInit() {
 
 // 生成一个长整型 ID
 func (ID *IDGenerator) NextID() int64 {
-
 	// 互斥锁，确保同一时间只能有一个线程进入
 	ID.mu.Lock()
 
 	timestamp := ID.timeGen()
-
-	//fmt.Printf("Timestamp: %d\n", timestamp)
-	//fmt.Printf("LastTimestamp: %d\n", ID.lastTimestamp)
-
 	if ID.lastTimestamp > timestamp { // 判断上次时间戳大于当前时间戳，防止时钟回拨
 		timestamp = ID.tilNextMillis(ID.lastTimestamp)
 	} else if ID.lastTimestamp == timestamp { // 同一时间戳内序列号自增
@@ -65,24 +60,19 @@ func (ID *IDGenerator) NextID() int64 {
 		ID.Sequence = 0
 	}
 
+	var id int64 = 0
 	ID.lastTimestamp = timestamp
+	if timestamp > 0 { // 等待下一毫秒执行次数过多则返回 ID = 0
+		timeBits := decBin(timestamp - ID.Epoch)
+		machineBits := fmt.Sprintf("%0"+strconv.Itoa(ID.MachineBit)+"s", decBin(int64(ID.MachineId)))
+		sequenceBits := fmt.Sprintf("%0"+strconv.Itoa(ID.SequenceBit)+"s", decBin(int64(ID.Sequence)))
+		// 生成 ID
+		id = binDec(timeBits + machineBits + sequenceBits)
+	}
 
 	// 解除互斥锁
 	ID.mu.Unlock()
 
-	if timestamp <= 0 { // 等待下一毫秒执行次数过多则返回 ID = 0
-		return 0
-	}
-
-	timeBits := decBin(timestamp - ID.Epoch)
-	machineBits := fmt.Sprintf("%0"+strconv.Itoa(ID.MachineBit)+"s", decBin(int64(ID.MachineId)))
-	sequenceBits := fmt.Sprintf("%0"+strconv.Itoa(ID.SequenceBit)+"s", decBin(int64(ID.Sequence)))
-	//fmt.Printf("sequence: %d\n", ID.Sequence)
-	//fmt.Printf("sequenceBits: %s\n", sequenceBits)
-
-	// 生成 ID
-	id := binDec(timeBits + machineBits + sequenceBits)
-	//fmt.Printf("sequenceBits: %d\n", id)
 	return id
 }
 
