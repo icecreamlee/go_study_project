@@ -5,9 +5,9 @@ import (
 	"os"
 )
 
-func Info(msg string)  {
-	fileName := "/my_golang.log"
-	logFile,err  := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+func Info(msg string) {
+	fileName := "/go_id_service.log"
+	logFile, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	defer logFile.Close()
 	if err != nil {
 		log.Fatalln("open file error !")

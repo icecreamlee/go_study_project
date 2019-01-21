@@ -23,33 +23,45 @@ type myservice struct{}
 func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
-	fasttick := time.Tick(500 * time.Millisecond)
-	slowtick := time.Tick(2 * time.Second)
+	fasttick := time.Tick(1000 * time.Millisecond)
+	slowtick := time.Tick(10 * time.Second)
 	tick := fasttick
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	elog.Info(1, strings.Join(args, "-"))
+	Info("my service start")
+	startIDService()
+
 loop:
 	for {
 		select {
 		case <-tick:
+			Info("my service beep")
 			beep()
 			elog.Info(1, "beep")
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
+				Info("my service interrogate")
 				changes <- c.CurrentStatus
 				// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
 				time.Sleep(100 * time.Millisecond)
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
+				Info("my service stop")
+				stopIDService()
 				break loop
 			case svc.Pause:
+				Info("my service pause")
 				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
 				tick = slowtick
+				stopIDService()
 			case svc.Continue:
+				Info("my service continue")
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 				tick = fasttick
+				startIDService()
 			default:
+				Info("my service default")
 				elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 			}
 		}

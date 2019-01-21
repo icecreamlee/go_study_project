@@ -15,6 +15,7 @@ import (
 )
 
 func startService(name string) error {
+	Info("my service start")
 	m, err := mgr.Connect()
 	if err != nil {
 		return err

@@ -1,77 +1,86 @@
-// Copyright 2012 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// +build windows
-
-// Example service program that beeps.
-//
-// The program demonstrates how to create Windows service and
-// install / remove it on a computer. It also shows how to
-// stop / start / pause / continue any service, and how to
-// write to event log. It also shows how to use debug
-// facilities available in debug package.
-//
 package main
 
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"strings"
+	"time"
 
-	"golang.org/x/sys/windows/svc"
+	"github.com/kardianos/service"
 )
 
-func usage(errmsg string) {
-	fmt.Fprintf(os.Stderr,
-		"%s\n\n"+
-			"usage: %s <command>\n"+
-			"       where <command> is one of\n"+
-			"       install, remove, debug, start, stop, pause or continue.\n",
-		errmsg, os.Args[0])
-	os.Exit(2)
+var logger service.Logger
+
+type program struct{}
+
+func (p *program) Start(s service.Service) error {
+	// Start should not block. Do the actual work async.
+	Info("service start")
+	go startIDService()
+	return nil
+}
+
+func (p *program) Stop(s service.Service) error {
+	// Stop should not block. Return with a few seconds.
+	Info("service stop")
+	//stopIDService()
+	<-time.After(time.Second * 13)
+	return nil
 }
 
 func main() {
-	const svcName = "myservice"
-
-	isIntSess, err := svc.IsAnInteractiveSession()
-	if err != nil {
-		log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+	svcConfig := &service.Config{
+		Name:        "IceIDGeneratorService",
+		DisplayName: "Ice ID Generator Service",
+		Description: "This is an ID generator service.",
 	}
-	if !isIntSess {
-		runService(svcName, false)
+
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(os.Args) > 1 {
+		err = service.Control(s, os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 
-	if len(os.Args) < 2 {
-		usage("no command specified")
+	logger, err = s.Logger(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = s.Run()
+	if err != nil {
+		logger.Error(err)
+	}
+}
+
+var idService *http.Server
+
+func startIDService() {
+	if idService == nil {
+		idService = &http.Server{Addr: ":9999"}
+		http.HandleFunc("/", idServiceResponse) // 设置访问的路由
 	}
 
-	cmd := strings.ToLower(os.Args[1])
-	switch cmd {
-	case "debug":
-		runService(svcName, true)
-		return
-	case "install":
-		Info("my service install")
-		err = installService(svcName, "my service")
-	case "remove":
-		err = removeService(svcName)
-	case "start":
-		err = startService(svcName)
-	case "stop":
-		err = controlService(svcName, svc.Stop, svc.Stopped)
-	case "pause":
-		err = controlService(svcName, svc.Pause, svc.Paused)
-	case "continue":
-		err = controlService(svcName, svc.Continue, svc.Running)
-	default:
-		usage(fmt.Sprintf("invalid command %s", cmd))
-	}
+	err := idService.ListenAndServe()
 	if err != nil {
-		log.Fatalf("failed to %s %s: %v", cmd, svcName, err)
+		log.Fatal("StartIDService: ", err)
 	}
-	return
+}
+
+func stopIDService() {
+	//err := idService.Shutdown(context.Background())
+	//if err != nil {
+	//	log.Fatal("StopIDService: ", err)
+	//}
+}
+
+func idServiceResponse(w http.ResponseWriter, r *http.Request) {
+	id := GetIDInstance().NextID()
+	fmt.Fprintf(w, "%d", id) // 这个写入到w的是输出到客户端的
 }
