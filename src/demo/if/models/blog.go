@@ -6,7 +6,7 @@ import (
 )
 
 type Blog struct {
-	ID       int
+	framework.Model
 	Title    string
 	Date     time.Time `gorm:"default:'0000-00-00'"`
 	Content  string
@@ -26,10 +26,14 @@ func (Blog) TableName() string {
 	return "blog"
 }
 
+func (Blog) GetTable() string {
+	return "blog"
+}
+
 func (blog *Blog) GetBlogs() []Blog {
 	var blogs []Blog
 	db, _ := framework.GetDB()
-	db.Find(&blogs)
+	_ = db.Find(&blogs)
 
 	for i, blog := range blogs {
 		blogs[i].Content = ""
