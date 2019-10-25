@@ -5,13 +5,23 @@ import (
 	_ "Demo/if/routers"
 	"fmt"
 	"net/http"
+	"reflect"
 )
+
+type User struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+	addr string `json:"_"`
+}
 
 func main() {
 	blog := models.NewBlog()
 	blog.GetBlogs()
 	fmt.Printf("blogs: %+v\n", blog)
-	blog.Save(blog, map[string]interface{}{"id": 16, "title": "xxx"})
+	t := reflect.TypeOf(*blog)
+	fmt.Printf("blogT: %+v\n", t)
+	blog.SetAll(blog, map[string]interface{}{"id": 16, "title": "xxxxx"})
+	//blog.Save(blog, map[string]interface{}{"id": 16, "title": "xxxxx"})
 	fmt.Printf("blogs: %+v\n", blog)
 	//title := blog.Get(blog, "Title")
 	//fmt.Printf("blog title: %+v\n", title)
